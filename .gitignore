@@ -1,0 +1,15 @@
+node_modules
+.next
+.env
+.env.*
+!.env.example
+!.env.vercel.example
+.vercel
+storage/presentations
+coverage
+playwright-report
+test-results
+*.log
+*.tsbuildinfo
+.local-postgres
+.pgsocket

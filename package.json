@@ -1,0 +1,52 @@
+{
+  "name": "english-training-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "vercel-build": "prisma generate && next build --webpack",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:db": "node --env-file=.env node_modules/vitest/vitest.mjs run --config vitest.db.config.ts",
+    "test:e2e": "node --env-file=.env node_modules/@playwright/test/cli.js test",
+    "db:generate": "prisma generate",
+    "db:start": "bash scripts/local-db.sh start",
+    "db:stop": "bash scripts/local-db.sh stop",
+    "db:status": "bash scripts/local-db.sh status",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "node --env-file=.env --import tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.10.0",
+    "@prisma/client": "^6.19.0",
+    "@vercel/blob": "^2.8.0",
+    "bcryptjs": "^3.0.2",
+    "mammoth": "^1.10.0",
+    "next": "16.3.3",
+    "next-auth": "^5.0.0-beta.30",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.2.1",
+    "server-only": "^0.0.1",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "16.3.3",
+    "prisma": "^6.19.0",
+    "tailwindcss": "^4.1.13",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

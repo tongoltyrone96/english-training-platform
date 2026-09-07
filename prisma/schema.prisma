@@ -1,0 +1,351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SentenceUsage {
+  TRAINING
+  TEST
+  BOTH
+}
+
+enum TrainingSessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum AttemptStatus {
+  SUBMITTED
+  EVALUATING
+  PASSED
+  RETRY_REQUIRED
+  ERROR
+}
+
+enum ExamAttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ImportStatus {
+  PREVIEW
+  IMPORTED
+  REJECTED
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String
+  passwordHash    String
+  role            Role     @default(USER)
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  trainingSessions TrainingSession[]
+  trainingAttempts TrainingAttempt[]
+  dailyProgress   DailyProgress[]
+  examAttempts    ExamAttempt[]
+  auditLogs       AuditLog[] @relation("AuditActor")
+  documentImports DocumentImport[] @relation("ImportCreator")
+  bootstrapClaim  AdminBootstrap?
+  sciTechPresentations SciTechPresentation[] @relation("SciTechPresenter")
+  sciTechRatings       SciTechRating[] @relation("SciTechEvaluator")
+  createdPresentations SciTechPresentation[] @relation("SciTechCreator")
+  presentationFiles    PresentationFile[] @relation("PresentationFileUploader")
+}
+
+model AdminBootstrap {
+  id          Int      @id @default(1)
+  claimedById String?  @unique
+  claimedAt   DateTime?
+  claimedBy   User?    @relation(fields: [claimedById], references: [id])
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  codeHash  String   @unique
+  label     String
+  active    Boolean  @default(true)
+  maxUses   Int      @default(10)
+  uses      Int      @default(0)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model AppSettings {
+  id                    Int      @id @default(1)
+  trainingQuestionCount Int      @default(5)
+  trainingTimeLimitSec  Int      @default(30)
+  trainingPassScore     Decimal  @default(4.5) @db.Decimal(2, 1)
+  trainingRandomOrder   Boolean  @default(true)
+  trainingAutoAdvance   Boolean  @default(true)
+  timeZone              String   @default("Europe/London")
+  updatedAt             DateTime @updatedAt
+}
+
+model Sentence {
+  id                String   @id @default(cuid())
+  korean            String
+  primaryAnswer     String
+  alternateAnswers  String[]
+  keywords          String[]
+  difficulty        Int      @default(1)
+  category          String   @default("general")
+  active            Boolean  @default(true)
+  usage             SentenceUsage @default(TRAINING)
+  createdAt         DateTime @default(now())
+  importId          String?
+  documentImport    DocumentImport? @relation(fields: [importId], references: [id])
+  trainingItems     TrainingSessionItem[]
+  examQuestions     ExamQuestion[]
+
+  @@unique([korean, primaryAnswer])
+}
+
+model DocumentImport {
+  id            String @id @default(cuid())
+  fileName      String
+  fileHash      String
+  status        ImportStatus @default(PREVIEW)
+  parsedData    Json
+  errors        Json
+  importedCount Int @default(0)
+  createdById   String
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+  createdBy     User @relation("ImportCreator", fields: [createdById], references: [id])
+  sentences     Sentence[]
+}
+
+model TrainingSession {
+  id             String   @id @default(cuid())
+  userId         String
+  localDate      DateTime @db.Date
+  status         TrainingSessionStatus @default(ACTIVE)
+  currentPosition Int     @default(0)
+  settingsSnapshot Json
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
+  user           User @relation(fields: [userId], references: [id])
+  items          TrainingSessionItem[]
+
+  @@unique([userId, localDate])
+}
+
+model TrainingSessionItem {
+  id          String @id @default(cuid())
+  sessionId   String
+  sentenceId  String
+  position    Int
+  passedAt    DateTime?
+  session     TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sentence    Sentence @relation(fields: [sentenceId], references: [id])
+  attempts    TrainingAttempt[]
+
+  @@unique([sessionId, position])
+}
+
+model TrainingAttempt {
+  id             String @id @default(cuid())
+  userId         String
+  sessionItemId  String
+  idempotencyKey String @unique
+  status         AttemptStatus
+  startedAt      DateTime
+  submittedAt    DateTime @default(now())
+  errorCode       String?
+  user           User @relation(fields: [userId], references: [id])
+  sessionItem    TrainingSessionItem @relation(fields: [sessionItemId], references: [id], onDelete: Cascade)
+  evaluation     EvaluationResult?
+}
+
+model DailyProgress {
+  id            String @id @default(cuid())
+  userId        String
+  localDate     DateTime @db.Date
+  assignedCount Int @default(0)
+  passedCount   Int @default(0)
+  goalAchieved  Boolean @default(false)
+  achievedAt    DateTime?
+  adminScore     Decimal? @db.Decimal(3, 2)
+  adminPassed    Boolean?
+  user          User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, localDate])
+}
+
+model SciTechPresentation {
+  id          String   @id @default(cuid())
+  localDate   DateTime @unique @db.Date
+  presenterId String
+  title       String   @default("Sci-Tech Presentation")
+  description String?
+  submissionDeadline DateTime?
+  eligibleEvaluatorCount Int?
+  createdById String?
+  submittedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  presenter   User     @relation("SciTechPresenter", fields: [presenterId], references: [id])
+  createdBy   User?    @relation("SciTechCreator", fields: [createdById], references: [id])
+  ratings     SciTechRating[]
+  files       PresentationFile[]
+}
+
+model PresentationFile {
+  id             String   @id @default(cuid())
+  presentationId String
+  uploadedById   String
+  originalName   String
+  storedName     String   @unique
+  storagePath    String
+  mimeType       String
+  sizeBytes      Int
+  sha256         String
+  version        Int
+  active         Boolean  @default(true)
+  uploadedAt     DateTime @default(now())
+  presentation   SciTechPresentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  uploadedBy     User @relation("PresentationFileUploader", fields: [uploadedById], references: [id])
+
+  @@unique([presentationId, version])
+  @@index([presentationId, active])
+}
+
+model SciTechRating {
+  id             String   @id @default(cuid())
+  presentationId String
+  evaluatorId    String
+  score           Decimal  @db.Decimal(2, 1)
+  createdAt       DateTime @default(now())
+  presentation    SciTechPresentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  evaluator       User     @relation("SciTechEvaluator", fields: [evaluatorId], references: [id])
+
+  @@unique([presentationId, evaluatorId])
+}
+
+model EvaluationResult {
+  id                   String @id @default(cuid())
+  trainingAttemptId    String? @unique
+  examAnswerId         String? @unique
+  transcript           String
+  meaningScore         Float
+  pronunciationScore   Float
+  grammarScore         Float
+  naturalnessScore     Float
+  fluencyScore         Float
+  completenessScore    Float
+  finalScore           Decimal @db.Decimal(3, 2)
+  passed               Boolean
+  correctedAnswer      String
+  feedbackKo           String
+  missingMeanings      String[]
+  detectedIssues       String[]
+  speechDetails        Json?
+  sentenceSnapshot     Json
+  settingsSnapshot     Json
+  promptVersion        String
+  speechProviderVersion String
+  languageModelVersion String
+  processingMs         Int
+  errorCode            String?
+  createdAt            DateTime @default(now())
+  trainingAttempt      TrainingAttempt? @relation(fields: [trainingAttemptId], references: [id], onDelete: Cascade)
+  examAnswer            ExamAnswer? @relation(fields: [examAnswerId], references: [id], onDelete: Cascade)
+}
+
+model Exam {
+  id           String @id @default(cuid())
+  name         String
+  active       Boolean @default(false)
+  questionCount Int
+  timeLimitSec Int @default(30)
+  passScore    Decimal @default(4.5) @db.Decimal(2, 1)
+  questions    ExamQuestion[]
+  attempts     ExamAttempt[]
+}
+
+model ExamQuestion {
+  id         String @id @default(cuid())
+  examId     String
+  sentenceId String
+  position   Int
+  exam       Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  sentence   Sentence @relation(fields: [sentenceId], references: [id])
+  answers    ExamAnswer[]
+  @@unique([examId, sentenceId])
+}
+
+model ExamAttempt {
+  id          String @id @default(cuid())
+  userId      String
+  examId      String
+  weekKey     String
+  status      ExamAttemptStatus @default(IN_PROGRESS)
+  questionOrder String[]
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  finalScore  Decimal? @db.Decimal(3, 2)
+  passed      Boolean?
+  user        User @relation(fields: [userId], references: [id])
+  exam        Exam @relation(fields: [examId], references: [id])
+  answers     ExamAnswer[]
+  @@unique([userId, examId, weekKey])
+}
+
+model ExamAnswer {
+  id              String @id @default(cuid())
+  examAttemptId   String
+  examQuestionId  String
+  position        Int
+  idempotencyKey  String @unique
+  status          AttemptStatus @default(SUBMITTED)
+  errorCode       String?
+  examAttempt     ExamAttempt @relation(fields: [examAttemptId], references: [id], onDelete: Cascade)
+  examQuestion    ExamQuestion @relation(fields: [examQuestionId], references: [id])
+  evaluation      EvaluationResult?
+  @@unique([examAttemptId, position])
+}
+
+model PromptVersion {
+  id        String @id
+  rubric    Json
+  active    Boolean @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String @id @default(cuid())
+  actorId    String
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  actor      User @relation("AuditActor", fields: [actorId], references: [id])
+}
+
+model RateLimitBucket {
+  id          String   @id
+  count       Int      @default(1)
+  expiresAt   DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt])
+}
