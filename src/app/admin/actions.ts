@@ -204,7 +204,8 @@ export async function updateSettingsAction(_: AdminState, formData: FormData): P
     db.auditLog.create({ data: { actorId: admin.id, action: "SETTINGS_UPDATE", entityType: "AppSettings", entityId: "1", metadata: parsed.data } }),
   ]);
   revalidatePath("/admin");
-  return { ok: "설정을 저장했습니다." };
+  revalidatePath("/dashboard");
+  return { ok: "설정을 저장했습니다. 현재 진행 중인 세션은 기존 기준을 유지하며, 새로 생성되는 세션부터 적용됩니다." };
 }
 
 const examSchema = z.object({
