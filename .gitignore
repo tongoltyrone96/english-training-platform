@@ -13,3 +13,6 @@ test-results
 *.tsbuildinfo
 .local-postgres
 .pgsocket
+.agents
+.claude
+skills-lock.json

@@ -1,0 +1,16 @@
+.env
+.env.local
+.env.*.local
+.vercel
+.git
+.agents
+.claude
+skills-lock.json
+node_modules
+.next
+storage/presentations
+coverage
+playwright-report
+test-results
+*.log
+*.tsbuildinfo
