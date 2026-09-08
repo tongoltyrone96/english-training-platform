@@ -1,16 +1,7 @@
-import { randomInt } from "node:crypto";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/authz";
 import { dateOnlyUtc, zonedDateParts } from "@/lib/time";
-
-function shuffle<T>(items: T[]) {
-  const result = [...items];
-  for (let index = result.length - 1; index > 0; index--) {
-    const swap = randomInt(index + 1);
-    [result[index], result[swap]] = [result[swap], result[index]];
-  }
-  return result;
-}
+import { selectTrainingSentenceIds } from "@/lib/training-selection";
 
 export async function getTrainingDestination() {
   const user = await requireUser();
@@ -22,12 +13,30 @@ export async function getTrainingDestination() {
   const existing = await db.trainingSession.findUnique({ where: { userId_localDate: { userId: user.id, localDate } } });
   if (existing) return `/training/${existing.id}`;
 
-  const sentences = await db.sentence.findMany({
-    where: { active: true, usage: { in: ["TRAINING", "BOTH"] } },
-    select: { id: true },
-    orderBy: { createdAt: "asc" },
-  });
-  const selected = shuffle(sentences).slice(0, settings.trainingQuestionCount);
+  const [sentences, userHistory, assignedToday] = await Promise.all([
+    db.sentence.findMany({
+      where: { active: true, usage: { in: ["TRAINING", "BOTH"] } },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    db.trainingSessionItem.findMany({
+      where: { session: { userId: user.id } },
+      select: { sentenceId: true },
+      distinct: ["sentenceId"],
+    }),
+    db.trainingSessionItem.findMany({
+      where: { session: { localDate } },
+      select: { sentenceId: true },
+      distinct: ["sentenceId"],
+    }),
+  ]);
+  const selectedIds = selectTrainingSentenceIds(
+    sentences.map((sentence) => sentence.id),
+    settings.trainingQuestionCount,
+    new Set(userHistory.map((item) => item.sentenceId)),
+    new Set(assignedToday.map((item) => item.sentenceId)),
+  );
+  const selected = selectedIds.map((id) => ({ id }));
   if (selected.length === 0) return "/dashboard?notice=no-sentences";
 
   try {
