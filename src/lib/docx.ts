@@ -23,23 +23,23 @@ export function parseSentenceText(text: string, existingPairs = new Set<string>(
     const first = lines[index];
     if (isSectionHeading(first)) { index++; continue; }
     const second = lines[index + 1];
-    if (!second) { errors.push(`번역 쌍을 찾지 못했습니다: ${first}`); break; }
+    if (!second) { errors.push(`No translation pair was found for: ${first}`); break; }
     let korean: string; let english: string;
     if (hasKorean(first) && hasEnglish(second) && !hasKorean(second)) { korean = cleanKorean(first); english = cleanEnglish(second); }
     else if (hasEnglish(first) && !hasKorean(first) && hasKorean(second)) { korean = cleanKorean(second); english = cleanEnglish(first); }
-    else { errors.push(`문장 순서를 인식하지 못했습니다: ${first}`); index++; continue; }
+    else { errors.push(`The sentence order could not be recognised: ${first}`); index++; continue; }
     const key = `${korean}\u0000${english}`.toLocaleLowerCase();
     const issues: string[] = [];
-    if (!hasKorean(korean)) issues.push("한국어 문장으로 인식되지 않습니다.");
-    if (!hasEnglish(english) || hasKorean(english)) issues.push("영어 번역을 확인해 주세요.");
-    if (korean.length > 300 || english.length > 500) issues.push("문장이 허용 길이를 초과합니다.");
+    if (!hasKorean(korean)) issues.push("This was not recognised as a Korean sentence.");
+    if (!hasEnglish(english) || hasKorean(english)) issues.push("Please check the English translation.");
+    if (korean.length > 300 || english.length > 500) issues.push("The sentence exceeds the allowed length.");
     const duplicate = seen.has(key) || existingPairs.has(key);
-    if (duplicate) issues.push("중복 문장입니다.");
+    if (duplicate) issues.push("This sentence is a duplicate.");
     seen.add(key);
     entries.push({ korean, english, duplicate, issues });
     index += 2;
   }
-  if (entries.length === 0) errors.push("가져올 문장 pair가 없습니다.");
+  if (entries.length === 0) errors.push("There are no sentence pairs to import.");
   return { entries, errors };
 }
 

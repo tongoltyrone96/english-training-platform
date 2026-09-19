@@ -1,62 +1,62 @@
-# Vercel 배포 안내
+# Vercel deployment guide
 
-이 프로젝트는 Vercel의 임시 파일시스템을 영구 저장소로 사용하지 않습니다. 앱과 API는 Vercel Functions에서 실행하고, 데이터는 관리형 PostgreSQL, 발표 자료는 Private Vercel Blob에 저장합니다. 발표 자료는 브라우저에서 Blob으로 직접 전송하므로 30 MB 파일도 Function 요청 본문 제한을 통과하지 않습니다.
+This project never uses Vercel's ephemeral filesystem as permanent storage. The app and the API run on Vercel Functions, data lives in a managed PostgreSQL instance, and presentation files go to a Private Vercel Blob store. Presentation files are uploaded straight from the browser to Blob, so even a 30 MB file never has to pass through the Function request-body limit.
 
-## 1. 준비
+## 1. Prerequisites
 
-- Vercel 계정
-- GitHub 계정과 이 프로젝트를 올린 private repository
-- Groq API key
-- 운영 관리자 이메일과 외부에 공개하지 않을 초대코드(8자 이상)
+- A Vercel account
+- A GitHub account and a private repository holding this project
+- A Groq API key
+- The production admin email and an invitation code (at least 8 characters) that is never shared publicly
 
-먼저 변경 사항을 GitHub repository에 push합니다. `.env` 파일은 절대로 commit하지 않습니다.
+Push your changes to the GitHub repository first. Never commit the `.env` file.
 
-## 2. Vercel 프로젝트 만들기
+## 2. Create the Vercel project
 
-1. Vercel Dashboard에서 **Add New → Project**를 선택합니다.
-2. GitHub repository를 import합니다.
-3. Framework Preset은 **Next.js**, Root Directory는 repository의 프로젝트 루트로 둡니다.
-4. 아직 Deploy하지 말고 환경변수와 저장소부터 연결합니다.
+1. In the Vercel Dashboard, choose **Add New → Project**.
+2. Import the GitHub repository.
+3. Leave the Framework Preset as **Next.js** and set the Root Directory to the project root in the repository.
+4. Don't deploy yet — connect the environment variables and the storage first.
 
-## 3. PostgreSQL 연결
+## 3. Connect PostgreSQL
 
-1. Vercel 프로젝트의 **Storage** 또는 **Integrations**에서 Neon PostgreSQL을 추가합니다.
-2. 같은 Vercel 프로젝트에 연결하고 Production/Preview/Development 환경을 선택합니다.
-3. Integration이 만든 pooled PostgreSQL URL을 `DATABASE_URL`로 사용합니다. 자동 생성된 변수명이 다르면 `DATABASE_URL`을 별도로 만들고 그 값을 복사합니다.
-4. 로컬 PC 주소인 `127.0.0.1:55432`는 Vercel에서 절대 사용할 수 없습니다.
+1. Add Neon PostgreSQL from the Vercel project's **Storage** or **Integrations** tab.
+2. Connect it to the same Vercel project and select the Production/Preview/Development environments.
+3. Use the pooled PostgreSQL URL created by the integration as `DATABASE_URL`. If the auto-generated variable has a different name, create `DATABASE_URL` separately and copy the value into it.
+4. `127.0.0.1:55432` is a local-machine address and can never be used on Vercel.
 
-## 4. Private Blob 연결
+## 4. Connect Private Blob
 
-1. 프로젝트 **Storage → Create Database → Blob**으로 이동합니다.
-2. 접근 유형은 **Private**로 만들고 현재 프로젝트에 연결합니다.
-3. 연결하면 `BLOB_READ_WRITE_TOKEN`이 프로젝트 환경변수에 자동 추가됩니다.
-4. 기존 로컬 `PRESENTATION_STORAGE_DIR`는 Vercel에 설정하지 않습니다.
+1. Go to **Storage → Create Database → Blob** in the project.
+2. Create it with **Private** access and connect it to the current project.
+3. Once connected, `BLOB_READ_WRITE_TOKEN` is added to the project's environment variables automatically.
+4. Do not set the local `PRESENTATION_STORAGE_DIR` variable on Vercel.
 
-## 5. 환경변수 입력
+## 5. Set the environment variables
 
-Project Settings → Environment Variables에서 [`.env.vercel.example`](../.env.vercel.example)의 항목을 등록합니다. 최소 필수값은 다음과 같습니다.
+Register the entries from [`.env.vercel.example`](../.env.vercel.example) under Project Settings → Environment Variables. The minimum required values are:
 
-- `DATABASE_URL`: 관리형 PostgreSQL 연결 문자열
-- `AUTH_SECRET`: 32자 이상의 무작위 비밀값 (`openssl rand -base64 32`로 생성 가능)
+- `DATABASE_URL`: the managed PostgreSQL connection string
+- `AUTH_SECRET`: a random secret of at least 32 characters (generate one with `openssl rand -base64 32`)
 - `AUTH_TRUST_HOST=true`
 - `AUTH_SECURE_COOKIES=true`
-- `AUTH_URL=https://실제-프로젝트주소.vercel.app`
-- `INITIAL_ADMIN_EMAIL`: 최초 관리자 가입 이메일
-- `INITIAL_INVITATION_CODE`: 최초 가입용 비밀 초대코드
-- `APP_TIME_ZONE`: 예: `Europe/London` 또는 `Asia/Pyongyang`
+- `AUTH_URL=https://your-actual-project.vercel.app`
+- `INITIAL_ADMIN_EMAIL`: the email the first admin will sign up with
+- `INITIAL_INVITATION_CODE`: the secret invitation code for that first sign-up
+- `APP_TIME_ZONE`: for example `Europe/London` or `Asia/Pyongyang`
 - `GROQ_API_KEY`, `GROQ_WHISPER_MODEL`, `GROQ_LANGUAGE_MODEL`
 - `EVALUATION_MODE=real`
-- `BLOB_READ_WRITE_TOKEN`: Blob 연결 시 자동 생성
+- `BLOB_READ_WRITE_TOKEN`: generated automatically when Blob is connected
 
-Production에 실제 주소를 넣습니다. Preview 배포도 별도로 로그인 시험을 할 경우 Preview용 `AUTH_URL`을 고정하지 말고 해당 배포 URL에 맞춰 관리해야 합니다. 환경변수를 바꾼 뒤에는 반드시 재배포합니다.
+Use the real address for Production. If you also want to test sign-in on Preview deployments, don't pin a Preview `AUTH_URL` — keep it aligned with each deployment's own URL. Always redeploy after changing an environment variable.
 
-## 6. 첫 배포
+## 6. First deployment
 
-Vercel에서 **Deploy**를 누릅니다. `vercel-build`가 Prisma Client를 생성한 뒤 Next.js production build를 수행합니다.
+Press **Deploy** in Vercel. `vercel-build` generates the Prisma Client and then runs the Next.js production build.
 
-## 7. 운영 DB migration과 초기 데이터
+## 7. Production database migration and seed data
 
-최초 한 번, 프로젝트 폴더의 PowerShell에서 아래처럼 실행합니다. 각 따옴표 안에는 Vercel에 입력한 운영값을 넣습니다.
+Run the following once from PowerShell in the project folder. Put the production values you entered in Vercel inside each pair of quotes.
 
 ```powershell
 $env:DATABASE_URL="postgresql://..."
@@ -67,7 +67,7 @@ npm run db:deploy
 npx tsx prisma/seed.ts
 ```
 
-끝난 뒤 같은 PowerShell 창에서 비밀값을 제거합니다.
+When it finishes, clear the secrets from that same PowerShell window.
 
 ```powershell
 Remove-Item Env:DATABASE_URL
@@ -75,20 +75,20 @@ Remove-Item Env:INITIAL_INVITATION_CODE
 Remove-Item Env:APP_TIME_ZONE
 ```
 
-Migration은 build 명령에 넣지 않았습니다. 동시에 여러 배포가 실행될 때 migration이 충돌하지 않도록 운영자가 새 migration 배포 시 한 번 실행합니다.
+Migrations are deliberately left out of the build command. So that concurrent deployments cannot collide on a migration, the operator runs it once when deploying a new migration.
 
-## 8. 관리자 가입과 확인
+## 8. Admin sign-up and verification
 
-1. 배포 주소의 Sign up을 엽니다.
-2. `INITIAL_ADMIN_EMAIL`과 정확히 같은 이메일, `INITIAL_INVITATION_CODE`로 가입합니다.
-3. 관리자 설정에서 새 초대코드를 발급하고 일반 사용자를 가입시킵니다.
-4. 관리자 DOCX 교체, Training 시작, 마이크 녹음/평가, 달력 즉시 반영을 확인합니다.
-5. 발표 일정을 만든 뒤 PPT/PDF 업로드와 다른 사용자의 다운로드를 확인합니다.
+1. Open Sign up on the deployed address.
+2. Sign up with exactly the same email as `INITIAL_ADMIN_EMAIL`, using `INITIAL_INVITATION_CODE`.
+3. From the admin settings, issue a new invitation code and have regular users sign up.
+4. Verify the admin DOCX replacement, starting Training, microphone recording and evaluation, and that the calendar updates immediately.
+5. Create a presentation slot, then verify a PPT/PDF upload and a download by another user.
 
-## 9. 배포 후 주의사항
+## 9. After deployment
 
-- Groq 무료 한도와 Vercel/Neon/Blob 무료 한도는 각 서비스 정책에 따라 달라질 수 있습니다.
-- Vercel 도메인은 HTTPS이므로 브라우저 마이크 사용 조건을 충족하지만, 사용자가 사이트의 마이크 권한을 직접 허용해야 합니다.
-- Groq key, DB URL, Blob token을 브라우저용 `NEXT_PUBLIC_` 변수로 만들지 마십시오.
-- 정기적으로 PostgreSQL 백업과 Blob 보존 정책을 확인하십시오.
-- API key가 노출되었다고 의심되면 즉시 폐기하고 새 key로 교체한 뒤 재배포합니다.
+- The Groq free tier and the Vercel/Neon/Blob free tiers can change according to each service's own policy.
+- Vercel domains are HTTPS, so the browser's microphone requirements are met, but each user still has to grant the site microphone permission themselves.
+- Never expose the Groq key, the database URL, or the Blob token as a browser-facing `NEXT_PUBLIC_` variable.
+- Review the PostgreSQL backups and the Blob retention policy regularly.
+- If you suspect an API key has leaked, revoke it immediately, replace it with a new key, and redeploy.

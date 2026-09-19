@@ -1,6 +1,6 @@
-# DOCX 문장 형식
+# DOCX sentence format
 
-Word 문서에는 아래 순서로 일반 문단을 작성합니다. 표나 머리글 대신 한 문장당 두 줄을 사용합니다.
+Write plain paragraphs in the Word document in the order shown below. Use two lines per sentence rather than a table or a heading.
 
 ```text
 오늘은 날씨가 매우 좋습니다.
@@ -10,4 +10,4 @@ The weather is very nice today.
 I wake up early every morning.
 ```
 
-지원 범위는 `.docx`, 최대 5MB입니다. 한국어 문장 다음에 영어 번역이 없거나, 같은 pair가 이미 등록되었거나, 한국어/영어 형식이 뒤바뀐 항목은 미리보기에서 오류로 표시됩니다.
+Only `.docx` is supported, up to 5 MB. An entry is flagged as an error in the preview when a Korean sentence has no English translation after it, when the same pair has already been registered, or when the Korean and English lines are the wrong way round.

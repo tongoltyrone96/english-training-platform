@@ -81,13 +81,13 @@ const sentenceSchema = z.object({
 export async function createSentenceAction(_: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await requireAdmin();
   const parsed = sentenceSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "문장 입력값을 확인해 주세요." };
+  if (!parsed.success) return { error: "Please check the sentence input." };
   try {
     const sentence = await db.sentence.create({ data: parsed.data });
     await db.auditLog.create({ data: { actorId: admin.id, action: "SENTENCE_CREATE", entityType: "Sentence", entityId: sentence.id } });
     revalidatePath("/admin");
-    return { ok: "문장을 저장했습니다." };
-  } catch { return { error: "중복 문장이거나 저장할 수 없는 값입니다." }; }
+    return { ok: "The sentence was saved." };
+  } catch { return { error: "This is a duplicate sentence or a value that cannot be saved." }; }
 }
 
 export async function toggleSentenceAction(formData: FormData) {
@@ -116,7 +116,7 @@ export async function updateSentenceAction(formData: FormData) {
 export async function previewDocxAction(_: ImportState, formData: FormData): Promise<ImportState> {
   const admin = await requireAdmin();
   const file = formData.get("file");
-  if (!(file instanceof File)) return { error: "DOCX 파일을 선택해 주세요." };
+  if (!(file instanceof File)) return { error: "Please choose a DOCX file." };
   try {
     const bytes = Buffer.from(await file.arrayBuffer());
     const parsed = await parseSentenceDocx(file);
@@ -130,8 +130,8 @@ export async function previewDocxAction(_: ImportState, formData: FormData): Pro
     await db.auditLog.create({ data: { actorId: admin.id, action: "DOCX_PREVIEW", entityType: "DocumentImport", entityId: record.id, metadata: { fileName: file.name, pairs: parsed.entries.length } } });
     return { importId: record.id, entries: parsed.entries, errors: parsed.errors };
   } catch (error) {
-    const messages: Record<string, string> = { DOCX_EXTENSION: ".docx 파일만 지원합니다.", DOCX_MIME: "파일 형식이 DOCX가 아닙니다.", DOCX_SIZE: "파일은 5MB 이하이며 비어 있지 않아야 합니다.", DOCX_SIGNATURE: "DOCX 파일 signature가 올바르지 않습니다.", DOCX_CORRUPT: "손상되었거나 읽을 수 없는 DOCX입니다." };
-    return { error: messages[error instanceof Error ? error.message : ""] ?? "DOCX를 분석하지 못했습니다." };
+    const messages: Record<string, string> = { DOCX_EXTENSION: "Only .docx files are supported.", DOCX_MIME: "The file type is not DOCX.", DOCX_SIZE: "The file must be 5 MB or smaller and not empty.", DOCX_SIGNATURE: "The DOCX file signature is not valid.", DOCX_CORRUPT: "The DOCX is corrupted or unreadable." };
+    return { error: messages[error instanceof Error ? error.message : ""] ?? "The DOCX could not be parsed." };
   }
 }
 
@@ -166,12 +166,12 @@ export async function confirmDocxImportAction(_: AdminState, formData: FormData)
   const admin = await requireAdmin();
   const importId = z.string().cuid().safeParse(formData.get("importId"));
   const selected = formData.getAll("selected").map(Number).filter(Number.isInteger);
-  if (!importId.success || selected.length === 0) return { error: "저장할 문장을 선택해 주세요." };
+  if (!importId.success || selected.length === 0) return { error: "Please select the sentences to save." };
   const record = await db.documentImport.findUnique({ where: { id: importId.data } });
-  if (!record || record.status !== "PREVIEW") return { error: "이미 처리되었거나 존재하지 않는 가져오기입니다." };
+  if (!record || record.status !== "PREVIEW") return { error: "This import has already been processed or does not exist." };
   const entries = z.array(z.object({ korean: z.string(), english: z.string(), duplicate: z.boolean(), issues: z.array(z.string()) })).parse(record.parsedData);
   const chosen = [...new Set(selected)].map((index) => entries[index]).filter((entry) => entry && entry.issues.length === 0);
-  if (chosen.length === 0) return { error: "오류가 없는 문장을 한 개 이상 선택해 주세요." };
+  if (chosen.length === 0) return { error: "Select at least one sentence that has no errors." };
   try {
     await db.$transaction(async (tx) => {
       await tx.sentence.updateMany({ where: { active: true }, data: { active: false } });
@@ -182,8 +182,8 @@ export async function confirmDocxImportAction(_: AdminState, formData: FormData)
       await tx.auditLog.create({ data: { actorId: admin.id, action: "DOCX_REPLACE_TRAINING_POOL", entityType: "DocumentImport", entityId: record.id, metadata: { importedCount: chosen.length, previousQuestionsDeactivated: true, randomOrderEnabled: true } } });
     });
     revalidatePath("/admin");
-    return { ok: `기존 문제를 교체하고 새 문제 ${chosen.length}개를 활성화했습니다. 매일 무작위로 출제됩니다.` };
-  } catch { return { error: "문제 교체 중 오류가 발생하여 모든 변경을 취소했습니다." }; }
+    return { ok: `Replaced the previous questions and activated ${chosen.length} new ones. They are drawn at random each day.` };
+  } catch { return { error: "Replacing the questions failed, so every change was rolled back." }; }
 }
 
 const settingsSchema = z.object({
@@ -198,14 +198,14 @@ const settingsSchema = z.object({
 export async function updateSettingsAction(_: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await requireAdmin();
   const parsed = settingsSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "설정값의 범위를 확인해 주세요." };
+  if (!parsed.success) return { error: "Please check that the settings are within range." };
   await db.$transaction([
     db.appSettings.upsert({ where: { id: 1 }, create: { id: 1, ...parsed.data }, update: parsed.data }),
     db.auditLog.create({ data: { actorId: admin.id, action: "SETTINGS_UPDATE", entityType: "AppSettings", entityId: "1", metadata: parsed.data } }),
   ]);
   revalidatePath("/admin");
   revalidatePath("/dashboard");
-  return { ok: "설정을 저장했습니다. 현재 진행 중인 세션은 기존 기준을 유지하며, 새로 생성되는 세션부터 적용됩니다." };
+  return { ok: "Settings saved. Sessions already in progress keep the previous rules; the new ones apply from the next session." };
 }
 
 const examSchema = z.object({
@@ -219,28 +219,28 @@ export async function createExamAction(_: AdminState, formData: FormData): Promi
   const admin = await requireAdmin();
   const parsed = examSchema.safeParse(Object.fromEntries(formData));
   const sentenceIds = [...new Set(formData.getAll("sentenceIds").map(String))];
-  if (!parsed.success || sentenceIds.length !== parsed.data.questionCount) return { error: "문제 수와 선택한 문장 수가 같아야 합니다." };
+  if (!parsed.success || sentenceIds.length !== parsed.data.questionCount) return { error: "The question count and the number of selected sentences must match." };
   const count = await db.sentence.count({ where: { id: { in: sentenceIds }, active: true } });
-  if (count !== sentenceIds.length) return { error: "사용할 수 없는 문장이 포함되어 있습니다." };
+  if (count !== sentenceIds.length) return { error: "The selection contains a sentence that cannot be used." };
   await db.$transaction(async (tx) => {
     await tx.exam.updateMany({ where: { active: true }, data: { active: false } });
     const exam = await tx.exam.create({ data: { ...parsed.data, active: true, questions: { create: sentenceIds.map((sentenceId, position) => ({ sentenceId, position })) } } });
     await tx.auditLog.create({ data: { actorId: admin.id, action: "EXAM_ACTIVATE", entityType: "Exam", entityId: exam.id, metadata: { questionCount: parsed.data.questionCount } } });
   });
   revalidatePath("/admin");
-  return { ok: "새 시험 세트를 활성화했습니다." };
+  return { ok: "The new test set is active." };
 }
 
 const invitationSchema = z.object({ label: z.string().trim().min(2).max(80), maxUses: z.coerce.number().int().min(1).max(100), expiresAt: z.string().optional() });
 
 export async function createInvitationAction(_: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await requireAdmin(); const parsed = invitationSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "초대코드 설정을 확인해 주세요." };
+  if (!parsed.success) return { error: "Please check the invitation code settings." };
   const code = randomBytes(18).toString("base64url"); const expiresAt = parsed.data.expiresAt ? new Date(`${parsed.data.expiresAt}T23:59:59Z`) : null;
-  if (expiresAt && Number.isNaN(expiresAt.getTime())) return { error: "만료일이 올바르지 않습니다." };
+  if (expiresAt && Number.isNaN(expiresAt.getTime())) return { error: "The expiry date is not valid." };
   const invitation = await db.invitation.create({ data: { label: parsed.data.label, maxUses: parsed.data.maxUses, expiresAt, codeHash: await hash(code, 12) } });
   await db.auditLog.create({ data: { actorId: admin.id, action: "INVITATION_CREATE", entityType: "Invitation", entityId: invitation.id, metadata: { label: invitation.label, maxUses: invitation.maxUses } } });
-  revalidatePath("/admin"); return { ok: "초대코드를 만들었습니다. 지금 안전하게 복사하세요.", createdCode: code };
+  revalidatePath("/admin"); return { ok: "The invitation code was created. Copy it somewhere safe now.", createdCode: code };
 }
 
 export async function toggleInvitationAction(formData: FormData) {

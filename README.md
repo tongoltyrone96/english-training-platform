@@ -1,10 +1,10 @@
 # English Training Platform
 
-팀 내부용 영어 말하기 훈련 및 주간 시험 웹사이트입니다. Phase 1~6과 Phase 7 핵심 보안 코드가 구현되어 있습니다. 인증, 콘텐츠/DOCX 관리, Training, 실제 평가 provider, 주간 Test, 팀 chart/순위, 사용자·초대 관리와 감사 로그를 포함합니다.
+An internal team website for English speaking practice and weekly tests. Phases 1–6 and the core Phase 7 security code are implemented. It covers authentication, content/DOCX management, Training, the real evaluation providers, the weekly Test, team charts and rankings, user and invitation management, and audit logging.
 
-## 로컬 실행
+## Running locally
 
-Node.js 22+, PostgreSQL이 필요합니다.
+Node.js 22+ and PostgreSQL are required.
 
 ```bash
 cp .env.example .env
@@ -15,7 +15,7 @@ npm run db:seed
 npm run dev
 ```
 
-현재 개발 PC에는 프로젝트 전용 PostgreSQL 18 클러스터가 구성되어 있습니다. 재부팅 후에는 다음 순서로 실행합니다.
+The current development PC has a dedicated PostgreSQL 18 cluster for this project. After a reboot, start it in this order:
 
 ```bash
 export PATH="$HOME/.local/lib/node-v22.19.0-linux-x64/bin:$PATH"
@@ -23,27 +23,27 @@ npm run db:start
 npm run dev
 ```
 
-Linux Node.js 22는 위 사용자 로컬 경로에 설치되어 있습니다. `export`를 WSL의 `~/.bashrc`에 추가하면 새 터미널마다 입력하지 않아도 됩니다.
+Linux Node.js 22 is installed at the user-local path above. Adding the `export` line to `~/.bashrc` in WSL saves you from typing it in every new terminal.
 
-DB 상태 확인과 종료에는 각각 `npm run db:status`, `npm run db:stop`을 사용합니다. 전용 DB는 `127.0.0.1:55432`에서만 수신하고 SCRAM 인증을 사용합니다. 데이터 파일은 Linux 사용자 홈의 `.local/share/english-training-postgres`에 있으며 source 저장소에는 포함되지 않습니다.
+Use `npm run db:status` and `npm run db:stop` to check on or shut down the database. The dedicated database listens on `127.0.0.1:55432` only and uses SCRAM authentication. Its data files live under `.local/share/english-training-postgres` in the Linux user's home directory and are not part of the source repository.
 
-`INITIAL_INVITATION_CODE`는 8자 이상으로 설정합니다. `INITIAL_ADMIN_EMAIL`과 정확히 일치하는 이메일로 최초 가입한 한 명만 ADMIN이 됩니다.
+Set `INITIAL_INVITATION_CODE` to at least 8 characters. Only the first person to sign up with an email that exactly matches `INITIAL_ADMIN_EMAIL` becomes an ADMIN.
 
-로컬 HTTP 실행은 `AUTH_SECURE_COOKIES=false`를 사용합니다. HTTPS로 배포할 때는 반드시 `AUTH_SECURE_COOKIES=true`로 변경합니다.
-Windows에서 WSL IP로 접속할 때는 `AUTH_URL`을 브라우저에서 사용하는 주소와 동일하게 설정합니다.
+Running locally over HTTP uses `AUTH_SECURE_COOKIES=false`. When deploying over HTTPS you must switch to `AUTH_SECURE_COOKIES=true`.
+When connecting from Windows via the WSL IP, set `AUTH_URL` to the same address you use in the browser.
 
-실제 평가 연동 전 Training UI 흐름만 확인하려면 로컬 환경에서만 `EVALUATION_MODE=mock`을 사용할 수 있습니다. 이 모드는 음성을 평가하지 않고 명시적인 mock 결과를 반환하므로 운영 환경에서 사용하면 안 됩니다.
+To walk through the Training UI flow before the real evaluation integration is wired up, you can set `EVALUATION_MODE=mock`, but only in a local environment. That mode does not evaluate audio at all — it returns an explicit mock result — so it must never be used in production.
 
-## 실제 평가 설정
+## Configuring the real evaluation
 
-- `GROQ_API_KEY`: Groq Console에서 발급한 API key
-- `GROQ_WHISPER_MODEL`: 기본값 `whisper-large-v3-turbo` (정확도 우선 시 `whisper-large-v3`)
-- `GROQ_LANGUAGE_MODEL`: 기본값 `openai/gpt-oss-20b` (Structured Outputs 지원)
-- `EVALUATION_MODE=real`: 실제 Groq 음성인식·문장 평가 provider 사용
+- `GROQ_API_KEY`: an API key issued in the Groq Console
+- `GROQ_WHISPER_MODEL`: defaults to `whisper-large-v3-turbo` (use `whisper-large-v3` when accuracy matters more)
+- `GROQ_LANGUAGE_MODEL`: defaults to `openai/gpt-oss-20b` (supports Structured Outputs)
+- `EVALUATION_MODE=real`: use the real Groq speech-recognition and sentence-evaluation providers
 
-브라우저 audio는 서버 메모리로 수신한 후 임시 디렉터리에서 WAV로 변환합니다. 변환 파일은 성공과 오류 모두 즉시 삭제되며 DB, object storage 및 로그에는 audio나 URL을 저장하지 않습니다.
+Browser audio is received into server memory and then converted to WAV in a temporary directory. The converted file is deleted immediately on both success and failure, and no audio or URL is stored in the database, in object storage, or in the logs.
 
-## 검증
+## Verification
 
 ```bash
 npm run typecheck
@@ -54,31 +54,31 @@ npm run test:e2e
 npm run build
 ```
 
-## 현재 검증 결과
+## Current verification results
 
-- Prisma Client 생성 및 schema 검증: 통과
-- TypeScript type-check: 통과
-- ESLint: 오류/경고 없이 통과
-- Vitest: 6개 파일, 15개 테스트 통과
-- PostgreSQL integration: 1개 파일, 2개 DB constraint 테스트 통과
-- Playwright E2E: 인증·잘못된 초대코드·관리자 RBAC 3개 시나리오 작성 완료
-- Next.js production build: 통과 (`--webpack`)
-- PostgreSQL 18 migration 및 seed 적용: 통과
-- Groq 음성인식 및 문장 평가 연동
+- Prisma Client generation and schema validation: passing
+- TypeScript type-check: passing
+- ESLint: passing with no errors or warnings
+- Vitest: 6 files, 15 tests passing
+- PostgreSQL integration: 1 file, 2 database constraint tests passing
+- Playwright E2E: 3 scenarios written — authentication, invalid invitation code, and admin RBAC
+- Next.js production build: passing (`--webpack`)
+- PostgreSQL 18 migration and seed applied: passing
+- Groq speech recognition and sentence evaluation integrated
 
-총 17개 unit/integration 테스트가 통과했습니다. 실행 smoke test에서 `/sign-in`은 HTTP 200, 미인증 `/dashboard`는 `/sign-in`으로 HTTP 307 redirect되는 것을 확인했습니다. Playwright 실행에는 `sudo npx playwright install-deps chromium`으로 WSL 브라우저 라이브러리를 한 번 설치해야 합니다.
+17 unit and integration tests pass in total. A runtime smoke test confirmed that `/sign-in` returns HTTP 200 and that an unauthenticated `/dashboard` request gets an HTTP 307 redirect to `/sign-in`. Running Playwright requires installing the WSL browser libraries once with `sudo npx playwright install-deps chromium`.
 
-Next.js 기본 Turbopack build는 현재 격리 환경에서 CSS worker가 내부 포트를 열 수 없어 실패했습니다. 같은 source를 webpack production build로 검증했습니다. `npm audit --omit=dev`에서 Prisma CLI 계열 `deepmerge-ts` 취약점 3건(high)이 보고되었으나 제안된 자동 수정은 Prisma를 이전 버전으로 강제 변경하므로 적용하지 않았습니다. 이는 production runtime이 아닌 migration 도구 경로이며 Prisma 업데이트 시 재검토해야 합니다.
+The default Next.js Turbopack build currently fails in this isolated environment because the CSS worker cannot open an internal port. The same source was verified with a webpack production build instead. `npm audit --omit=dev` reports 3 high-severity `deepmerge-ts` vulnerabilities coming from the Prisma CLI, but the suggested automatic fix forces Prisma down to an older version, so it was not applied. That path is a migration tool rather than the production runtime, and it should be revisited when Prisma is updated.
 
-전체 단계와 기술 결정은 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)를 참고하세요.
+For the full set of phases and the technical decisions behind them, see [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 
-Vercel용 저장소 구조와 실제 배포 순서는 [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md)를 참고하세요.
+For the Vercel repository layout and the actual deployment steps, see [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md).
 
-## 배포 전 확인
+## Pre-deployment checklist
 
-- 관리형 PostgreSQL에 `npx prisma migrate deploy` 실행
-- production `AUTH_SECRET`, 관리자 이메일, 운영 시간대 설정
-- Groq key와 model ID 설정 후 실제 정답·동의표현·무음·잡음 dataset 검증
-- ffmpeg 실행을 지원하는 Node.js runtime과 60초 request timeout 확인
-- HTTPS, reverse proxy의 신뢰 가능한 `x-forwarded-for`, 백업과 log retention 설정
-- Playwright E2E 및 실제 모바일 브라우저 microphone 권한 검증
+- Run `npx prisma migrate deploy` against the managed PostgreSQL instance
+- Set the production `AUTH_SECRET`, the admin email, and the operating time zone
+- Set the Groq key and model IDs, then validate against a dataset of real correct answers, accepted paraphrases, silence, and noise
+- Confirm a Node.js runtime that can run ffmpeg and a 60-second request timeout
+- Configure HTTPS, a trusted `x-forwarded-for` from the reverse proxy, backups, and log retention
+- Verify the Playwright E2E suite and microphone permissions on a real mobile browser

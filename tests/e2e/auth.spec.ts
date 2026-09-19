@@ -18,26 +18,26 @@ test.afterAll(async () => {
 test("renders sign-in and redirects protected dashboard", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/sign-in$/);
-  await expect(page.getByRole("heading", { name: "다시 만나 반가워요" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Login" })).toBeVisible();
 });
 
 test("rejects an invalid invitation code", async ({ page }) => {
   await page.goto("/sign-up");
-  await page.getByLabel("이름").fill("Invalid Invite");
-  await page.getByLabel("이메일").fill(`invalid-${crypto.randomUUID()}@test.local`);
-  await page.getByLabel("비밀번호").fill(password);
-  await page.getByLabel("초대코드").fill("definitely-invalid");
-  await page.getByRole("button", { name: "계정 만들기" }).click();
-  await expect(page.getByRole("alert")).toContainText("초대코드가 유효하지 않습니다");
+  await page.getByLabel("Name").fill("Invalid Invite");
+  await page.getByLabel("Email").fill(`invalid-${crypto.randomUUID()}@test.local`);
+  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Invitation code").fill("definitely-invalid");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByRole("alert")).toContainText("The invitation code is invalid or has expired.");
 });
 
 test("signs in a user and enforces server-side admin RBAC", async ({ page }) => {
   await page.goto("/sign-in");
-  await page.getByLabel("이메일").fill(email);
-  await page.getByLabel("비밀번호").fill(password);
-  await page.getByRole("button", { name: "로그인" }).click();
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByRole("heading", { name: /오늘도 한 문장씩/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/dashboard/);
 });
